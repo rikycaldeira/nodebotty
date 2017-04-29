@@ -1,6 +1,3 @@
-// App ID: 61c0e089-8270-4752-986f-347dcf71973e
-// Password: Hio0DV1jqgqczzuALKZbQJf
-
 var restify = require('restify');
 var builder = require('botbuilder');
 
@@ -27,15 +24,19 @@ server.post('/api/messages', connector.listen());
 // Bots Dialogs
 //=========================================================
 
-var intents = new builder.IntentDialog();
-bot.dialog('/', intents);
 
-intents.matches(/^change name/i, [
+// Initialize LUIS
+var recognizer = new builder.LuisRecognizer('https://westus.api.cognitive.microsoft.com/luis/v2.0/apps/ba201298-343e-4c62-a2c5-0467be470b3c?subscription-key=aae67084eee5475eabc88be6a08c8706&timezoneOffset=0&verbose=true');
+var intents = new builder.IntentDialog({ recognizers: [recognizer] });
+
+
+
+intents.matches(/^alterar nome/i, [
     function (session) {
         session.beginDialog('/profile');
     },
     function (session, results) {
-        session.send('Ok... Changed your name to %s', session.userData.name);
+        session.send('Ok... alterei o teu nome para %s', session.userData.name);
     }
 ]);
 
@@ -48,16 +49,39 @@ intents.onDefault([
         }
     },
     function (session, results) {
-        session.send('Hello %s!', session.userData.name);
+        session.send('Olá %s!', session.userData.name);
     }
 ]);
 
 bot.dialog('/profile', [
     function (session) {
-        builder.Prompts.text(session, 'Hi! What is your name?');
+        builder.Prompts.text(session, 'Olá! Qual o teu nome?');
     },
     function (session, results) {
         session.userData.name = results.response;
         session.endDialog();
     }
 ]);
+
+bot.dialog('/greeting', [
+    function (session, args, next) {
+        if (!session.userData.name) {
+            session.beginDialog('/profile');
+        } else {
+            next();
+        }
+    },
+    function (session, results) {
+        session.endDialog(' Olá do LUIS, %s!', session.userData.name);
+    }
+]);
+
+bot.dialog('/whatis', [
+    function (session, args, next) {
+        session.endDialog("Eu não sei o que significa \"" + args.entities[0].entity + "\" ainda...");
+    }
+]);
+
+intents.matches('Greeting', '/greeting');
+intents.matches('WhatIs', '/whatis');
+bot.dialog('/', intents);
